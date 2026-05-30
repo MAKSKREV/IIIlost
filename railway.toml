@@ -1,2 +1,0 @@
-[deploy]
-startCommand = "python feedback_bot.py"
