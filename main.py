@@ -5,7 +5,7 @@ from datetime import datetime
 
 # Конфигурация
 BOT_TOKEN = "8984814572:AAGPyC1TnACYBizhvGX3ejF2Yjl96kgOv8Y"
-ADMIN_ID = 5176998143
+ADMIN_IDS = [5176998143, 1085820441]
 
 # Инициализация бота
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -173,28 +173,30 @@ def feedback_request(message):
 
 def process_feedback(message):
     feedback_text = message.text
-    
-    # Сохраняем сообщение
-    save_message(message.from_user.id, ADMIN_ID, f"📝 ОТЗЫВ:\n{feedback_text}")
-    
+
+    # Сохраняем сообщение каждому админу
+    for admin_id in ADMIN_IDS:
+        save_message(message.from_user.id, admin_id, f"📝 ОТЗЫВ:\n{feedback_text}")
+
     bot.send_message(
         message.chat.id,
         "✅ Ваш отзыв отправлен администрации!\n\n"
         "Если вам понадобится ещё что-то, выберите действие в меню."
     )
-    
-    # Уведомляем админа
-    try:
-        bot.send_message(
-            ADMIN_ID,
-            f"📬 Новый отзыв от пользователя!\n"
-            f"👤 Пользователь: @{message.from_user.username or 'без username'} ({message.from_user.first_name})\n"
-            f"🆔 ID: {message.from_user.id}\n"
-            f"📝 Текст:\n{feedback_text}",
-            reply_markup=get_user_action_markup(message.from_user.id)
-        )
-    except:
-        pass
+
+    # Уведомляем всех админов
+    for admin_id in ADMIN_IDS:
+        try:
+            bot.send_message(
+                admin_id,
+                f"📬 Новый отзыв от пользователя!\n"
+                f"👤 Пользователь: @{message.from_user.username or 'без username'} ({message.from_user.first_name})\n"
+                f"🆔 ID: {message.from_user.id}\n"
+                f"📝 Текст:\n{feedback_text}",
+                reply_markup=get_user_action_markup(message.from_user.id)
+            )
+        except:
+            pass
 
 # Обработчик кнопки "Попросить помощь"
 @bot.message_handler(func=lambda message: message.text == "❓ Попросить помощь")
@@ -207,28 +209,30 @@ def help_request(message):
 
 def process_help_request(message):
     help_text = message.text
-    
-    # Сохраняем сообщение
-    save_message(message.from_user.id, ADMIN_ID, f"❓ ПОМОЩЬ:\n{help_text}")
-    
+
+    # Сохраняем сообщение каждому админу
+    for admin_id in ADMIN_IDS:
+        save_message(message.from_user.id, admin_id, f"❓ ПОМОЩЬ:\n{help_text}")
+
     bot.send_message(
         message.chat.id,
         "✅ Ваш запрос отправлен администрации!\n"
         "Ожидайте ответа."
     )
-    
-    # Уведомляем админа
-    try:
-        bot.send_message(
-            ADMIN_ID,
-            f"🆘 Запрос помощи от пользователя!\n"
-            f"👤 Пользователь: @{message.from_user.username or 'без username'} ({message.from_user.first_name})\n"
-            f"🆔 ID: {message.from_user.id}\n"
-            f"❓ Вопрос:\n{help_text}",
-            reply_markup=get_user_action_markup(message.from_user.id)
-        )
-    except:
-        pass
+
+    # Уведомляем всех админов
+    for admin_id in ADMIN_IDS:
+        try:
+            bot.send_message(
+                admin_id,
+                f"🆘 Запрос помощи от пользователя!\n"
+                f"👤 Пользователь: @{message.from_user.username or 'без username'} ({message.from_user.first_name})\n"
+                f"🆔 ID: {message.from_user.id}\n"
+                f"❓ Вопрос:\n{help_text}",
+                reply_markup=get_user_action_markup(message.from_user.id)
+            )
+        except:
+            pass
 
 # Клавиатура действий для админа
 def get_user_action_markup(user_id):
@@ -249,7 +253,7 @@ def get_dialog_control_markup(user_id):
 # Обработчик команды /admin для админа
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         bot.send_message(message.chat.id, "❌ Доступ запрещён. Только для администратора.")
         return
     
@@ -277,7 +281,7 @@ def admin_panel(message):
 # Обработчик инлайн-кнопок
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
-    if call.from_user.id != ADMIN_ID:
+    if call.from_user.id not in ADMIN_IDS:
         return
     
     data = call.data
@@ -383,7 +387,7 @@ def callback_handler(call):
                 pass
 
 # Обработка сообщений от админа во время диалога
-@bot.message_handler(func=lambda message: message.from_user.id == ADMIN_ID)
+@bot.message_handler(func=lambda message: message.from_user.id in ADMIN_IDS)
 def admin_message_handler(message):
     # Проверяем, есть ли активные диалоги
     # Для простоты - если сообщение не команда и не ответ на callback
@@ -399,36 +403,39 @@ def admin_message_handler(message):
             # Отправляем сообщение всем пользователям с открытым диалогом
             for (user_id,) in open_dialogs:
                 try:
-                    save_message(ADMIN_ID, user_id, message.text)
+                    for admin_id in ADMIN_IDS:
+                        save_message(admin_id, user_id, message.text)
                     bot.send_message(
                         user_id,
                         f"💬 Сообщение от администрации:\n\n{message.text}"
                     )
                 except Exception as e:
                     print(f"Ошибка отправки пользователю {user_id}: {e}")
-            
+
             bot.reply_to(message, f"✅ Сообщение отправлено {len(open_dialogs)} пользователю(ям)")
         else:
             bot.reply_to(message, "❌ Нет активных диалогов. Выберите пользователя через /admin")
 
 # Обработка сообщений от пользователей во время диалога
-@bot.message_handler(func=lambda message: message.from_user.id != ADMIN_ID and is_dialog_open(message.from_user.id))
+@bot.message_handler(func=lambda message: message.from_user.id not in ADMIN_IDS and is_dialog_open(message.from_user.id))
 def user_dialog_message(message):
     user_id = message.from_user.id
-    
-    # Сохраняем и пересылаем сообщение админу
-    save_message(user_id, ADMIN_ID, message.text)
-    
-    try:
-        bot.send_message(
-            ADMIN_ID,
-            f"💬 Сообщение от пользователя:\n"
-            f"👤 {message.from_user.first_name} (ID: {user_id})\n"
-            f"📝 Текст:\n{message.text}",
-            reply_markup=get_dialog_control_markup(user_id)
-        )
-    except Exception as e:
-        print(f"Ошибка отправки админу: {e}")
+
+    # Сохраняем и пересылаем сообщение всем админам
+    for admin_id in ADMIN_IDS:
+        save_message(user_id, admin_id, message.text)
+
+    for admin_id in ADMIN_IDS:
+        try:
+            bot.send_message(
+                admin_id,
+                f"💬 Сообщение от пользователя:\n"
+                f"👤 {message.from_user.first_name} (ID: {user_id})\n"
+                f"📝 Текст:\n{message.text}",
+                reply_markup=get_dialog_control_markup(user_id)
+            )
+        except Exception as e:
+            print(f"Ошибка отправки админу {admin_id}: {e}")
 
 # Запуск бота
 if __name__ == "__main__":
